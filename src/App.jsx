@@ -1,12 +1,11 @@
 
-import "./app.css";
 import Page from "./components/Page"
 
 
 function App() {
   return (
    
-      <div className="min-h-screen bg-gray-300">
+      <div className="min-h-screen bg-gray-250">
         <Page/>
        
       </div>

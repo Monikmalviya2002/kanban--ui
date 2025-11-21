@@ -2,28 +2,23 @@ import { useState, useEffect } from "react";
 import TaskColumn from "./TaskColumn";
 import AddModal from "./AddModel";
 
-export default function ProjectTasks() {
+export default function ProjectTasks({ selectedProject, searchQuery }) {
   const [tasks, setTasks] = useState(() => {
     const saved = localStorage.getItem("tasks-data");
-
-    return saved
-      ? JSON.parse(saved)
-      : {
-          todo: [],
-          inprogress: [],
-          completed: [],
-        };
+    return saved ? JSON.parse(saved) : {};
   });
 
   const [showAdd, setShowAdd] = useState(false);
 
-  // 🔥 Auto-save tasks to localStorage
+ 
   useEffect(() => {
     localStorage.setItem("tasks-data", JSON.stringify(tasks));
   }, [tasks]);
 
-  // ➕ Add Task
+  
   const handleAddTask = (title, desc) => {
+    if (!selectedProject) return;
+
     const newTask = {
       id: Date.now(),
       title,
@@ -32,27 +27,34 @@ export default function ProjectTasks() {
 
     setTasks((prev) => ({
       ...prev,
-      todo: [...prev.todo, newTask],
+      [selectedProject]: {
+        todo: [...((prev[selectedProject]?.todo) || []), newTask],
+        inprogress: prev[selectedProject]?.inprogress || [],
+        completed: prev[selectedProject]?.completed || [],
+      },
     }));
 
     setShowAdd(false);
   };
 
-  // 🔄 Move Task between columns
+  
   const handleMoveTask = (id, newStatus) => {
+    if (!selectedProject) return;
+
     setTasks((prev) => {
       let movedTask = null;
+      const projectTasks = prev[selectedProject] || { todo: [], inprogress: [], completed: [] };
 
       const updated = {
-        todo: prev.todo.filter((t) => {
+        todo: projectTasks.todo.filter((t) => {
           if (t.id === id) movedTask = t;
           return t.id !== id;
         }),
-        inprogress: prev.inprogress.filter((t) => {
+        inprogress: projectTasks.inprogress.filter((t) => {
           if (t.id === id) movedTask = t;
           return t.id !== id;
         }),
-        completed: prev.completed.filter((t) => {
+        completed: projectTasks.completed.filter((t) => {
           if (t.id === id) movedTask = t;
           return t.id !== id;
         }),
@@ -60,19 +62,30 @@ export default function ProjectTasks() {
 
       updated[newStatus].push(movedTask);
 
-      return updated;
+      return { ...prev, [selectedProject]: updated };
     });
   };
 
+  
+  const filterTasks = (items) => {
+    if (!searchQuery) return items;
+    return items.filter(
+      (task) =>
+        task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        task.desc.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  };
+
+  if (!selectedProject)
+    return <div className="text-gray-500">Select a project to view tasks</div>;
+
+  const projectTasks = tasks[selectedProject] || { todo: [], inprogress: [], completed: [] };
+
   return (
     <div className="w-full">
-
-      {/* HEADER */}
+      
       <div className="flex justify-between items-center">
-        <div className="flex gap-3 items-center">
-          <span className="text-2xl font-bold mx-4">Projects</span>
-        </div>
-
+        <span className="text-2xl font-bold mx-4">Tasks</span>
         <button
           onClick={() => setShowAdd(true)}
           className="px-4 py-2 mx-4 my-2 bg-blue-600 text-white rounded-3xl hover:bg-blue-700 transition cursor-pointer"
@@ -81,37 +94,32 @@ export default function ProjectTasks() {
         </button>
       </div>
 
-      {/* COLUMNS */}
+    
       <div className="grid grid-cols-3 gap-6 mt-6">
         <TaskColumn
           title="Yet To Start"
           status="todo"
-          items={tasks.todo}
+          items={filterTasks(projectTasks.todo)}
           onMove={handleMoveTask}
         />
 
         <TaskColumn
           title="In Progress"
           status="inprogress"
-          items={tasks.inprogress}
+          items={filterTasks(projectTasks.inprogress)}
           onMove={handleMoveTask}
         />
 
         <TaskColumn
           title="Completed"
           status="completed"
-          items={tasks.completed}
+          items={filterTasks(projectTasks.completed)}
           onMove={handleMoveTask}
         />
       </div>
 
-      {/* ADD MODAL */}
-      {showAdd && (
-        <AddModal
-          onClose={() => setShowAdd(false)}
-          onSubmit={handleAddTask}
-        />
-      )}
+     
+      {showAdd && <AddModal onClose={() => setShowAdd(false)} onSubmit={handleAddTask} />}
     </div>
   );
 }
